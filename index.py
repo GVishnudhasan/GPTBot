@@ -1,59 +1,51 @@
 import os
 import openai
+import requests
 from flask import Flask, request, jsonify
 
+# Set up OpenAI credentials
+openai.api_key = "YOUR_OPENAI_API_KEY"
+
+# Set up Flask server
 app = Flask(__name__)
-# app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secret')
 
-# # Set up OpenAI API
-# openai.api_key = os.environ.get('OPENAI_API_KEY')
+# Define endpoint for webhook
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    # Get message details from WhatsApp Business API webhook
+    data = request.get_json()
+    sender = data['messages'][0]['from']
+    message = data['messages'][0]['text']
 
-link = 'https://graph.facebook.com/v16.0/118259757911348/messages'
+    # Store user data in database (you'll need to set up your own database for this)
+    # ...
 
-#Test Route
-@app.route('/')
-def start():
-    return "Works!"
+    # Use OpenAI to generate response
+    response = openai.Completion.create(
+        engine="davinci",
+        prompt=message,
+        max_tokens=60,
+        n=1,
+        stop=None,
+        temperature=0.5,
+    )
 
-# # Handle incoming messages
-# @app.route('/webhook', methods=['POST'])
-# def webhook():
-#     print(os.environ.get('OPENAI_API_KEY'), os.environ.get('SECRET_KEY'))
-#     data = request.json
-#     for message in data['messages']:
-#         if message['type'] == 'chat':
-#             chat_id = message['chatId']
-#             message_text = message['body']
-#             process_message(chat_id, message_text)
-#     return jsonify({'success': True})
+    # Send response back to user using WhatsApp Business API
+    url = "https://graph.facebook.com/v16.0/118259757911348/messages"
+    headers = {
+        "Authorization": "Bearer EABTHNf0nHU8BAAiGqqCtbiJACanfQoRQZC03drtaTZA9fuECKAsbDdwcW6ZC0NCsHrTF5Cxk56bd24BlX2JoYLZC3vpmZAwxr226qDD28EwDcaIFFYHvjpA45AO2UWEByxPHl8ZCs330kZCrypkeo6ott8Vhk9ZABkDp101a02XqlWJAiQvyHXWdCFhqfWkyARZCC9qZAohw9uwgZDZD",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": sender,
+        "type": "text",
+        "text": response.choices[0].text,
+    }
+    response = requests.post(url, headers=headers, json=payload)
 
-# # Process incoming messages
-# def process_message(chat_id, message_text):
-#     # TODO: Implement logic to store user data in a database
+    return jsonify({'success': True})
 
-#     # Get response from OpenAI API
-#     response = get_response(message_text)
-
-#     # Send response to user
-#     send_message(chat_id, response)
-
-# # Get response from OpenAI API
-# def get_response(prompt):
-#     response = openai.Completion.create(
-#         engine="davinci",
-#         prompt=prompt,
-#         max_tokens=1024,
-#         n=1,
-#         stop=None,
-#         temperature=0.7,
-#     )
-#     message = response.choices[0].text.strip()
-#     return message
-
-# # Send message to user
-# def send_message(chat_id, message):
-#     # TODO: Implement logic to send message to user via WhatsApp Business API
-#     pass
-
+# Run the Flask server
 if __name__ == '__main__':
     app.run(debug=True)
